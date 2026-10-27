@@ -1,9 +1,9 @@
 const { clampPosition, decodePositions } = globalThis.PortfolioLogic;
 
 const media = {
-  video: {title:'圣诞主题 AI 场景视频', label:'AI GENERATED / VIDEO SAMPLE', type:'video', src:'assets/christmas-ai-sample.mp4', poster:'assets/christmas-poster.jpg', description:'约 13 秒的 AI 场景视频样片。用于展示 AI 素材与场景表达，非实拍或使用效果证明。制作工具、本人贡献与迭代过程将在资料补齐后展示。'},
-  'solar-ai': {title:'车顶灯 AI 商品创意视频', label:'AI CONTENT / SAVED VERSION', type:'video', src:'assets/solar-lamp-ai-original.mp4', poster:'assets/solar-lamp-original-poster.jpg', description:'原始无水印文件暂未找到，当前展示带平台水印的留存版本。视频保留所提供文件的原画面与音轨，未做水印修补。制作工具与本人负责环节待补齐。'},
-  'car-real': {title:'车内收纳产品 · 实拍演示', label:'REAL FOOTAGE / PRODUCT DEMO', type:'video', src:'assets/car-organizer-real.mp4', poster:'assets/car-organizer-poster.jpg', description:'约 30 秒的实拍产品演示，展示车内收纳产品的外观、结构和安装过程。与 AI 素材分开展示，具体拍摄、剪辑及脚本分工待补齐。'},
+  video: {title:'圣诞主题 AI 场景视频', label:'AI GENERATED / VIDEO SAMPLE', type:'video', src:'assets/christmas-ai-sample-h264.mp4', poster:'assets/christmas-poster.jpg', description:'约 13 秒的 AI 场景视频样片。用于展示 AI 素材与场景表达，非实拍或使用效果证明。制作工具、本人贡献与迭代过程将在资料补齐后展示。'},
+  'solar-ai': {title:'车顶灯 AI 商品创意视频', label:'AI CONTENT / SAVED VERSION', type:'video', src:'assets/solar-lamp-ai-original-h264.mp4', poster:'assets/solar-lamp-original-poster.jpg', description:'原始无水印文件暂未找到，当前展示带平台水印的留存版本。视频保留所提供文件的原画面与音轨，未做水印修补。制作工具与本人负责环节待补齐。'},
+  'car-real': {title:'车内收纳产品 · 实拍演示', label:'REAL FOOTAGE / PRODUCT DEMO', type:'video', src:'assets/car-organizer-real-h264.mp4', poster:'assets/car-organizer-poster.jpg', description:'约 30 秒的实拍产品演示，展示车内收纳产品的外观、结构和安装过程。与 AI 素材分开展示，具体拍摄、剪辑及脚本分工待补齐。'},
   'car-source': {title:'车内收纳产品 · 实拍剪辑素材库', label:'REAL FOOTAGE / SOURCE MATERIALS', type:'image', src:'assets/car-organizer-source-library.jpg', description:'与车内收纳产品实拍成片配套的素材库截图。可见多个产品细节、手部操作和安装展示片段，以及部分“已添加”标记，用于展示素材准备和选择过程。'},
   'us-account': {title:'美区 TikTok 带货账号 · 主页记录', label:'US TIKTOK / ACCOUNT SNAPSHOT', type:'image', src:'assets/us-account-overview.png', description:'美区 TikTok 带货账号主页截图，显示 4980 粉丝、3535 赞及多条商品视频。数据为截图时点记录，不作为实时数据或成交金额展示。'},
   'us-content-grid': {title:'本人真人出镜 · 帽子与面罩产品展示', label:'US TIKTOK / ON-CAMERA PRODUCT PRESENTATION', type:'image', src:'assets/us-content-grid.png', description:'本人出镜的是第二排第1条：帽子与面罩产品展示，截图显示 4476 次播放，出镜身份已由本人确认。这里保留完整视频列表，便于结合其他商品内容查看；其他人物未标为本人，具体脚本、拍摄及剪辑分工另行补充。'},
@@ -19,6 +19,7 @@ const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const toast = document.querySelector('#toast');
 let toastTimer;
 function notify(message) {
+  (document.querySelector('dialog[open]') ?? document.body).append(toast);
   toast.textContent = message;
   toast.classList.add('visible');
   window.clearTimeout(toastTimer);
@@ -63,10 +64,10 @@ function saveLayout() {
 stickers.forEach((sticker,index) => {
   placeNormalized(sticker, saved[`s${index}`] ?? initialPositions[index]);
   let dragging = null;
-  let suppressClick = false;
+  let lastDragEnd = -Infinity;
   if (sticker.matches('.sample-polaroid')) sticker.addEventListener('click', event => {
-    if (!suppressClick) return;
-    suppressClick = false;
+    if (event.detail === 0 || performance.now() - lastDragEnd >= 400) return;
+    lastDragEnd = -Infinity;
     event.preventDefault();
     event.stopImmediatePropagation();
   });
@@ -97,8 +98,7 @@ stickers.forEach((sticker,index) => {
     if (moved) {
       saveLayout();
       if (sticker.matches('.sample-polaroid')) {
-        suppressClick = true;
-        window.setTimeout(() => { suppressClick = false; }, 0);
+        lastDragEnd = performance.now();
       }
       if (!reducedMotion.matches) sticker.animate([{scale:'1.035'},{scale:'0.985'},{scale:'1'}], {duration:280,easing:'ease-out'});
     }
@@ -124,7 +124,7 @@ stickers.forEach((sticker,index) => {
 });
 let lastWidth = board.clientWidth;
 let lastHeight = board.clientHeight;
-const boardObserver = new ResizeObserver(() => {
+function resizeBoard() {
   if (lastWidth === board.clientWidth && lastHeight === board.clientHeight) return;
   const normalized = stickers.map(sticker => {
     const point = positions.get(sticker);
@@ -133,8 +133,9 @@ const boardObserver = new ResizeObserver(() => {
   lastWidth = board.clientWidth;
   lastHeight = board.clientHeight;
   stickers.forEach((sticker,index) => placeNormalized(sticker,normalized[index]));
-});
-boardObserver.observe(board);
+}
+if ('ResizeObserver' in window) new ResizeObserver(resizeBoard).observe(board);
+else window.addEventListener('resize', resizeBoard);
 document.querySelector('#reset-stickers').addEventListener('click', () => {
   stickers.forEach((sticker,index) => placeNormalized(sticker, initialPositions[index]));
   saveLayout();
@@ -243,6 +244,10 @@ mediaDialog.addEventListener('close', () => {
   mediaContent.replaceChildren();
 });
 document.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', () => document.getElementById(button.dataset.close).close()));
+document.querySelectorAll('dialog').forEach(dialog => dialog.addEventListener('close', () => {
+  toast.classList.remove('visible');
+  document.body.append(toast);
+}));
 document.querySelectorAll('dialog').forEach(dialog => dialog.addEventListener('click', event => {
   if (event.target !== dialog) return;
   const rect = dialog.getBoundingClientRect();
@@ -304,6 +309,15 @@ document.querySelectorAll('.case-jump').forEach(link => link.addEventListener('c
   history.replaceState(null,'',link.getAttribute('href'));
 }));
 
+function openHashDetails() {
+  const target = document.getElementById(location.hash.slice(1));
+  if (!(target instanceof HTMLDetailsElement) || target.closest('[hidden]')) return;
+  target.open = true;
+  requestAnimationFrame(() => target.scrollIntoView({block:'start'}));
+}
+window.addEventListener('hashchange', openHashDetails);
+openHashDetails();
+
 if ('IntersectionObserver' in window) {
   if (!reducedMotion.matches) document.documentElement.classList.add('js-motion');
   const revealObserver = new IntersectionObserver(entries => {
@@ -334,3 +348,4 @@ window.addEventListener('scroll', () => { if (scrollFrame === null) scrollFrame 
 window.addEventListener('resize', updateProgress);
 document.querySelectorAll('details').forEach(details => details.addEventListener('toggle',updateProgress));
 updateProgress();
+
