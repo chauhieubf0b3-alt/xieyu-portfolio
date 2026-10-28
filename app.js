@@ -348,4 +348,3 @@ window.addEventListener('scroll', () => { if (scrollFrame === null) scrollFrame 
 window.addEventListener('resize', updateProgress);
 document.querySelectorAll('details').forEach(details => details.addEventListener('toggle',updateProgress));
 updateProgress();
-
